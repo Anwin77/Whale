@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cyber Guardian</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+  <style>
+    .shield { width: 40px; height: 40px; display: inline-block; }
+  </style>
+</head>
+<body class="bg-gray-100 font-sans">
+  <div class="min-h-screen flex flex-col">
+    <header class="bg-blue-600 text-white p-4">
+      <h1 class="text-2xl font-bold">Cyber Guardian</h1>
+    </header>
+    <main class="flex-grow p-6">
+      <section class="bg-white rounded-lg shadow-lg p-6 mb-6">
+        <h2 class="text-xl font-semibold mb-4">Scan a Link or Message</h2>
+        <div class="flex space-x-4">
+          <input id="scanInput" type="text" placeholder="Paste link or message here..." class="flex-grow p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <button id="scanButton" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">Scan Now</button>
+        </div>
+        <div id="shieldContainer" class="mt-4 hidden">
+          <svg class="shield" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M12 2L3 7v7c0 5 9 9 9 9s9-4 9-9V7l-9-5z" stroke-width="2"/>
+          </svg>
+          <span id="scanResult" class="ml-2 text-lg"></span>
+        </div>
+      </section>
+      <section class="bg-white rounded-lg shadow-lg p-6">
+        <h2 class="text-xl font-semibold mb-4">Recent Alerts</h2>
+        <div id="alertsContainer" class="space-y-4"></div>
+      </section>
+    </main>
+    <footer class="bg-gray-800 text-white p-4 text-center">
+      <p>© 2025 Cyber Guardian. All rights reserved.</p>
+    </footer>
+  </div>
+  <script>
+    async function scanLink(link) {
+      try {
+        const response = await fetch('http://localhost:3000/api/scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ link })
+        });
+        if (!response.ok) throw new Error('Scan failed');
+        return await response.json();
+      } catch (error) {
+        return { isPhishing: true, message: 'Error scanning link', platform: 'Web', risk: 'Unknown', source: 'N/A' };
+      }
+    }
+
+    async function loadRecentScans() {
+      try {
+        const response = await fetch('http://localhost:3000/api/scans');
+        const scans = await response.json();
+        scans.forEach(addAlert);
+      } catch (error) {
+        console.error('Failed to load scans:', error);
+      }
+    }
+
+    function addAlert(result) {
+      const alertCard = document.createElement('div');
+      alertCard.className = 'p-4 bg-gray-50 rounded-lg border border-gray-200 opacity-0';
+      alertCard.innerHTML = `
+        <div class="flex items-center">
+          <svg class="shield w-8 h-8 ${result.isPhishing ? 'text-red-500' : 'text-green-500'}" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M12 2L3 7v7c0 5 9 9 9 9s9-4 9-9V7l-9-5z" stroke-width="2"/>
+          </svg>
+          <div class="ml-3">
+            <p class="font-semibold">${result.message}</p>
+            <p class="text-sm text-gray-600">Platform: ${result.platform}</p>
+            <p class="text-sm text-gray-600">Risk: ${result.risk}</p>
+            <p class="text-sm text-gray-600">Source: ${result.source}</p>
+          </div>
+        </div>
+      `;
+      document.getElementById('alertsContainer').prepend(alertCard);
+      anime({
+        targets: alertCard,
+        opacity: [0, 1],
+        translateY: [20, 0],
+        duration: 500,
+        easing: 'easeOutQuad'
+      });
+    }
+
+    document.getElementById('scanButton').addEventListener('click', async () => {
+      const input = document.getElementById('scanInput').value.trim();
+      if (!input) return;
+
+      const shieldContainer = document.getElementById('shieldContainer');
+      const shield = shieldContainer.querySelector('.shield');
+      shieldContainer.classList.remove('hidden');
+
+      anime({
+        targets: shield,
+        scale: [1, 1.2, 1],
+        duration: 1000,
+        easing: 'easeInOutQuad',
+        loop: true
+      });
+
+      const result = await scanLink(input);
+      shield.style.color = result.isPhishing ? '#ef4444' : '#22c55e';
+      document.getElementById('scanResult').textContent = result.message;
+
+      anime.remove(shield);
+      anime({ targets: shield, scale: 1, duration: 300 });
+      addAlert(result);
+    });
+
+    loadRecentScans();
+  </script>
+</body>
+</html>
